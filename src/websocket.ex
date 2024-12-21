@@ -1,5 +1,5 @@
 # https://github.com/Azolo/websockex/blob/master/examples/echo_client.exs
-defmodule BummerSocket do
+defmodule Socket do
   use WebSockex
   require Logger
 
