@@ -74,6 +74,13 @@ fn vibrate(socket, miliseconds: Int) {
 }
 
 fn sos(socket) {
+  // See https://www.codebug.org.uk/learn/step/541/morse-code-timing-rules/
+  // The length of a dot is 1 time unit.
+  // A dash is 3 time units.
+  // The space between symbols (dots and dashes) of the same letter is 1 time unit.
+  // The space between letters is 3 time units.
+  // The space between words is 7 time units.
+
   let interval = 200
 
   vibrate(socket, interval)
@@ -82,21 +89,22 @@ fn sos(socket) {
   sleep(interval)
   vibrate(socket, interval)
 
-  sleep(interval)
+  sleep(interval * 3)
 
-  vibrate(socket, interval * 2)
+  vibrate(socket, interval * 3)
   sleep(interval)
-  vibrate(socket, interval * 2)
+  vibrate(socket, interval * 3)
   sleep(interval)
-  vibrate(socket, interval * 2)
+  vibrate(socket, interval * 3)
 
-  sleep(interval)
+  sleep(interval * 3)
 
   vibrate(socket, interval)
   sleep(interval)
   vibrate(socket, interval)
   sleep(interval)
   vibrate(socket, interval)
+  // sleep(interval * 7)
 }
 
 pub fn main() {
