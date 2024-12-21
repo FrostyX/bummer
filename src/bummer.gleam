@@ -1,11 +1,10 @@
-// https://docs.buttplug.io/docs/spec/
-// https://docs.intiface.com/docs/intiface-central/hardware/bluetooth/#what-type-of-bluetooth-dongle-should-i-use
-
 import gleam/dynamic.{type Dynamic}
+import gleam/erlang/atom.{type Atom}
 import gleam/erlang/process.{type Pid, sleep}
 import gleam/float
 import gleam/int
 import gleam/io
+import gleam/result
 import websocket
 
 type Message {
@@ -14,10 +13,11 @@ type Message {
   StartScanning(id: Int)
   StopScanning(id: Int)
   Vibrate(id: Int, device: Int, speed: Float)
+  Rotate(id: Int, device: Int, speed: Float)
   Stop(id: Int)
 }
 
-fn create_message(message: Message) {
+fn serialize(message: Message) {
   case message {
     // The json module should be easy to use, e.g
     // [#("Id", 1] |> json.object |> json.to_string
@@ -48,6 +48,16 @@ fn create_message(message: Message) {
       <> int.to_string(id)
       <> "}}]"
 
+    Rotate(id, device, speed) ->
+      "[{\"RotateCmd\": {\"DeviceIndex\": "
+      <> int.to_string(device)
+      <> ", \"Rotations\": [{\"Index\": 0, \"Speed\": "
+      <> float.to_string(speed)
+      <> ", \"Clockwise\": true"
+      <> "}], \"Id\": "
+      <> int.to_string(id)
+      <> "}}]"
+
     Stop(id) ->
       "[{\"StopDeviceCmd\": {\"DeviceIndex\": 0, \"Id\": "
       <> int.to_string(id)
@@ -56,95 +66,59 @@ fn create_message(message: Message) {
 }
 
 pub fn connect(url: String) -> Result(Pid, Dynamic) {
-  case websocket.open(url) {
-    Ok(socket) -> {
-      RequestServerInfo(1, "Test Client")
-      |> create_message
-      |> websocket.push(socket, _)
-
-      // TODO
-      Ok(socket)
-    }
-    // TODO
-    Error(error) -> Error(error)
-  }
+  use socket <- result.try(websocket.open(url))
+  RequestServerInfo(1, "Bummer")
+  |> serialize
+  |> websocket.push(socket, _)
+  Ok(socket)
 }
 
-pub fn scan(socket: Pid) -> Pid {
-  RequestDeviceList(2)
-  |> create_message
-  |> websocket.push(socket, _)
+pub fn scan(socket: Pid, miliseconds: Int) -> Atom {
+  let res =
+    StartScanning(3)
+    |> serialize
+    |> websocket.push(socket, _)
 
-  sleep(2000)
-
-  StartScanning(3)
-  |> create_message
-  |> websocket.push(socket, _)
-
-  sleep(10_000)
-
-  StopScanning(6)
-  |> create_message
-  |> websocket.push(socket, _)
-
-  socket
+  sleep(miliseconds)
+  res
 }
 
-pub fn vibrate(socket, miliseconds: Int) {
-  Vibrate(4, 0, 0.5)
-  |> create_message
+fn do(socket, message: Message, miliseconds: Int) -> Atom {
+  message
+  |> serialize
   |> websocket.push(socket, _)
 
   sleep(miliseconds)
 
   Stop(5)
-  |> create_message
+  |> serialize
   |> websocket.push(socket, _)
 }
 
-fn sos(socket) {
-  // See https://www.codebug.org.uk/learn/step/541/morse-code-timing-rules/
-  // The length of a dot is 1 time unit.
-  // A dash is 3 time units.
-  // The space between symbols (dots and dashes) of the same letter is 1 time unit.
-  // The space between letters is 3 time units.
-  // The space between words is 7 time units.
+pub fn vibrate(socket, miliseconds: Int) -> Atom {
+  Vibrate(4, 0, 0.5) |> do(socket, _, miliseconds)
+}
 
-  let interval = 200
-
-  vibrate(socket, interval)
-  sleep(interval)
-  vibrate(socket, interval)
-  sleep(interval)
-  vibrate(socket, interval)
-
-  sleep(interval * 3)
-
-  vibrate(socket, interval * 3)
-  sleep(interval)
-  vibrate(socket, interval * 3)
-  sleep(interval)
-  vibrate(socket, interval * 3)
-
-  sleep(interval * 3)
-
-  vibrate(socket, interval)
-  sleep(interval)
-  vibrate(socket, interval)
-  sleep(interval)
-  vibrate(socket, interval)
-  // sleep(interval * 7)
+pub fn rotate(socket, miliseconds: Int) -> Atom {
+  Rotate(4, 0, 0.5) |> do(socket, _, miliseconds)
 }
 
 pub fn main() {
-  let url = "ws://127.0.0.1:12345/"
-  case connect(url) {
+  websocket.set_log_level(atom.create_from_string("info"))
+  case connect("ws://127.0.0.1:12345/") {
     Ok(socket) -> {
-      sos(socket)
-      io.println("Done with the socket")
+      io.println("Connected to intiface-engine websocket")
+      io.println("Initiating a test sequence")
+
+      scan(socket, 5000)
+      vibrate(socket, 500)
+      sleep(500)
+      rotate(socket, 500)
+
+      io.println("Test sequence finished")
     }
-    Error(_) -> {
-      io.println("Cannot connect to intiface-engine websocket. Is it running?")
-    }
+    Error(_) ->
+      "Cannot connect to intiface-engine websocket. Is it running?"
+      |> io.println_error
   }
 }
