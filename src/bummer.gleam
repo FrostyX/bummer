@@ -4,6 +4,7 @@
 import gleam/dynamic.{type Dynamic}
 import gleam/erlang/atom.{type Atom}
 import gleam/erlang/process.{type Pid, sleep}
+import gleam/float
 import gleam/int
 import gleam/io
 
@@ -18,6 +19,8 @@ type Message {
   RequestDeviceList(id: Int)
   StartScanning(id: Int)
   StopScanning(id: Int)
+  Vibrate(id: Int, device: Int, speed: Float)
+  Stop(id: Int)
 }
 
 fn create_message(message: Message) {
@@ -34,14 +37,66 @@ fn create_message(message: Message) {
       <> "}}]"
 
     RequestDeviceList(id) ->
-      "[{\"StartScanning\": {\"Id\": " <> int.to_string(id) <> "}}]"
+      "[{\"RequestDeviceList\": {\"Id\": " <> int.to_string(id) <> "}}]"
 
     StartScanning(id) ->
       "[{\"StartScanning\": {\"Id\": " <> int.to_string(id) <> "}}]"
 
     StopScanning(id) ->
       "[{\"StopScanning\": {\"Id\": " <> int.to_string(id) <> "}}]"
+
+    Vibrate(id, device, speed) ->
+      "[{\"VibrateCmd\": {\"DeviceIndex\": "
+      <> int.to_string(device)
+      <> ", \"Speeds\": [{\"Index\": 0, \"Speed\": "
+      <> float.to_string(speed)
+      <> "}], \"Id\": "
+      <> int.to_string(id)
+      <> "}}]"
+
+    Stop(id) ->
+      "[{\"StopDeviceCmd\": {\"DeviceIndex\": 0, \"Id\": "
+      <> int.to_string(id)
+      <> "}}]"
   }
+}
+
+fn vibrate(socket, miliseconds: Int) {
+  Vibrate(4, 0, 0.5)
+  |> create_message
+  |> websocket_echo(socket, _)
+
+  sleep(miliseconds)
+
+  Stop(5)
+  |> create_message
+  |> websocket_echo(socket, _)
+}
+
+fn sos(socket) {
+  let interval = 200
+
+  vibrate(socket, interval)
+  sleep(interval)
+  vibrate(socket, interval)
+  sleep(interval)
+  vibrate(socket, interval)
+
+  sleep(interval)
+
+  vibrate(socket, interval * 2)
+  sleep(interval)
+  vibrate(socket, interval * 2)
+  sleep(interval)
+  vibrate(socket, interval * 2)
+
+  sleep(interval)
+
+  vibrate(socket, interval)
+  sleep(interval)
+  vibrate(socket, interval)
+  sleep(interval)
+  vibrate(socket, interval)
 }
 
 pub fn main() {
@@ -51,29 +106,31 @@ pub fn main() {
 
   case websocket_open(url) {
     Ok(socket) -> {
-      io.debug(socket)
-
       RequestServerInfo(1, "Test Client")
       |> create_message
       |> websocket_echo(socket, _)
-      |> io.debug
+
+      sleep(3500)
 
       RequestDeviceList(2)
       |> create_message
       |> websocket_echo(socket, _)
-      |> io.debug
+
+      sleep(3500)
 
       StartScanning(3)
       |> create_message
       |> websocket_echo(socket, _)
-      |> io.debug
 
-      sleep(60_000)
+      sleep(3500)
 
-      StopScanning(4)
+      sos(socket)
+
+      sleep(3000)
+
+      StopScanning(6)
       |> create_message
       |> websocket_echo(socket, _)
-      |> io.debug
 
       io.println("Done with the socket")
     }
