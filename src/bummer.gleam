@@ -19,6 +19,10 @@ type Message {
   Stop(id: Int)
 }
 
+pub fn set_log_level(level: Atom) -> Nil {
+  websocket.set_log_level(level)
+}
+
 fn serialize(message: Message) {
   case message {
     // The json module should be easy to use, e.g
@@ -85,7 +89,7 @@ pub fn scan(socket: Pid, miliseconds: Int) -> Atom {
   res
 }
 
-fn do(socket, message: Message, miliseconds: Int) -> Atom {
+fn do(socket, message: Message, miliseconds: Int) -> Nil {
   message
   |> serialize
   |> websocket.push(socket, _)
@@ -95,15 +99,17 @@ fn do(socket, message: Message, miliseconds: Int) -> Atom {
   Stop(message_id)
   |> serialize
   |> websocket.push(socket, _)
+
+  Nil
 }
 
-pub fn vibrate(socket, miliseconds: Int) -> Atom {
+pub fn vibrate(socket, miliseconds: Int) -> Nil {
   let device = 0
   let speed = 0.5
   Vibrate(message_id, device, speed) |> do(socket, _, miliseconds)
 }
 
-pub fn rotate(socket, miliseconds: Int) -> Atom {
+pub fn rotate(socket, miliseconds: Int) -> Nil {
   let device = 0
   let speed = 0.5
   Rotate(message_id, device, speed) |> do(socket, _, miliseconds)
