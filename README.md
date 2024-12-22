@@ -65,6 +65,9 @@ comes with a short executable to test your setup more easily.
 gleam run
 ```
 
+Run it twice to be sure.
+
+
 ## Resources
 
 - [API spec][spec] - Describes the architecture, messages schema, etc
