@@ -7,6 +7,8 @@ import gleam/io
 import gleam/result
 import websocket
 
+const message_id = 1
+
 type Message {
   RequestServerInfo(id: Int, client_name: String)
   RequestDeviceList(id: Int)
@@ -67,7 +69,7 @@ fn serialize(message: Message) {
 
 pub fn connect(url: String) -> Result(Pid, Dynamic) {
   use socket <- result.try(websocket.open(url))
-  RequestServerInfo(1, "Bummer")
+  RequestServerInfo(message_id, "Bummer")
   |> serialize
   |> websocket.push(socket, _)
   Ok(socket)
@@ -75,7 +77,7 @@ pub fn connect(url: String) -> Result(Pid, Dynamic) {
 
 pub fn scan(socket: Pid, miliseconds: Int) -> Atom {
   let res =
-    StartScanning(3)
+    StartScanning(message_id)
     |> serialize
     |> websocket.push(socket, _)
 
@@ -90,17 +92,21 @@ fn do(socket, message: Message, miliseconds: Int) -> Atom {
 
   sleep(miliseconds)
 
-  Stop(5)
+  Stop(message_id)
   |> serialize
   |> websocket.push(socket, _)
 }
 
 pub fn vibrate(socket, miliseconds: Int) -> Atom {
-  Vibrate(4, 0, 0.5) |> do(socket, _, miliseconds)
+  let device = 0
+  let speed = 0.5
+  Vibrate(message_id, device, speed) |> do(socket, _, miliseconds)
 }
 
 pub fn rotate(socket, miliseconds: Int) -> Atom {
-  Rotate(4, 0, 0.5) |> do(socket, _, miliseconds)
+  let device = 0
+  let speed = 0.5
+  Rotate(message_id, device, speed) |> do(socket, _, miliseconds)
 }
 
 pub fn main() {
