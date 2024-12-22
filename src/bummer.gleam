@@ -19,6 +19,9 @@ type Message {
   Stop(id: Int)
 }
 
+pub type Connection =
+  Pid
+
 pub fn set_log_level(level: Atom) -> Nil {
   websocket.set_log_level(level)
 }
@@ -71,7 +74,7 @@ fn serialize(message: Message) {
   }
 }
 
-pub fn connect(url: String) -> Result(Pid, Dynamic) {
+pub fn connect(url: String) -> Result(Connection, Dynamic) {
   use socket <- result.try(websocket.open(url))
   RequestServerInfo(message_id, "Bummer")
   |> serialize
@@ -79,7 +82,7 @@ pub fn connect(url: String) -> Result(Pid, Dynamic) {
   Ok(socket)
 }
 
-pub fn scan(socket: Pid, miliseconds: Int) -> Atom {
+pub fn scan(socket: Connection, miliseconds: Int) -> Atom {
   let res =
     StartScanning(message_id)
     |> serialize
